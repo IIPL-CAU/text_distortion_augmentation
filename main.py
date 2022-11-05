@@ -4,6 +4,7 @@ import argparse
 # Import custom modules
 from task.preprocessing.data_preprocessing import data_preprocessing
 from task.training import training
+from task.augmenting import augmenting
 # Utils
 from utils import str2bool, path_check, set_random_seed
 
@@ -21,6 +22,9 @@ def main(args):
     if args.preprocessing:
         data_preprocessing(args)
 
+    if args.augmenting:
+        augmenting(args)
+
     if args.training:
         training(args)
 
@@ -34,6 +38,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Parsing Method')
     # Task setting
     parser.add_argument('--preprocessing', action='store_true')
+    parser.add_argument('--augmenting', action='store_true')
     parser.add_argument('--training', action='store_true')
     parser.add_argument('--testing', action='store_true')
     parser.add_argument('--resume', action='store_true')
@@ -44,6 +49,8 @@ if __name__=='__main__':
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
+    parser.add_argument('--aug_data_name', default='korpora_kr', type=str,
+                        help='Data name; Default is korpora_kr')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
     parser.add_argument('--model_save_path', default='/HDD/kyohoon1/model_checkpoint/latent', type=str,
@@ -141,6 +148,7 @@ if __name__=='__main__':
     parser.add_argument('--lr_lambda', default=0.95, type=float,
                         help="Lambda learning scheduler's lambda; Default is 0.95")
     # Training setting
+    parser.add_argument('--train_with_aug', action='store_true')
     parser.add_argument('--min_len', default=4, type=int, 
                         help="Sentences's minimum length; Default is 4")
     parser.add_argument('--num_epochs', default=30, type=int, 

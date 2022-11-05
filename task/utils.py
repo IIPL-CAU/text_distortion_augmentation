@@ -60,7 +60,7 @@ def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
     return loss
 
 def model_save_name(args):
-    save_path = os.path.join(args.model_save_path, args.task, args.data_name, args.tokenizer)
+    save_path = os.path.join(args.model_save_path, args.data_name, args.tokenizer)
     save_name_pre = 'checkpoint'
     if not os.path.exists(save_path):
         os.mkdir(save_path)

@@ -12,7 +12,7 @@ class CustomDataset(Dataset):
                 src_tensor[:len(src)] = torch.tensor(src, dtype=torch.long)
                 src_att_tensor = torch.tensor(src_att, dtype=torch.long)
                 # Target tensor
-                trg_tensor = torch.tensor(trg, dtype=torch.long)
+                trg_tensor = torch.tensor(trg, dtype=torch.float)
                 #
                 self.tensor_list.append((src_tensor, src_att_tensor, trg_tensor))
 

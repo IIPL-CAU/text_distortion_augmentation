@@ -5,10 +5,9 @@ import psutil
 import h5py
 import pickle
 import logging
+import numpy as np
 from tqdm import tqdm
 from time import time
-import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
 # Import PyTorch
 import torch
 from torch.nn import functional as F
@@ -16,6 +15,7 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
+from transformers import BertForSequenceClassification
 # Import custom modules
 from dataset import CustomDataset
 from optimizer.utils import shceduler_select, optimizer_select
@@ -62,7 +62,9 @@ def training(args):
         valid_src_input_ids = f.get('valid_src_input_ids')[:]
         valid_src_attention_mask = f.get('valid_src_attention_mask')[:]
         train_trg_list = f.get('train_label')[:]
+        train_trg_list = F.one_hot(torch.tensor(train_trg_list, dtype=torch.long)).numpy()
         valid_trg_list = f.get('valid_label')[:]
+        valid_trg_list = F.one_hot(torch.tensor(valid_trg_list, dtype=torch.long)).numpy()
 
     with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
@@ -71,6 +73,23 @@ def training(args):
         src_language = data_['src_language']
         num_labels = data_['num_labels']
         del data_
+
+    if args.train_with_aug:
+        save_path = os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer)
+        if args.tokenizer == 'spm':
+            save_name = f'aug_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
+        else:
+            save_name = f'aug.hdf5'
+
+        with h5py.File(os.path.join(save_path, save_name), 'r') as f:
+            aug_input_ids = f.get('aug_input_ids')[:]
+            aug_attention_mask = f.get('aug_attention_mask')[:]
+            aug_label = f.get('aug_label')[:]
+            aug_label = torch.full((len(aug_label), num_labels), 1 / num_labels).numpy()
+
+        train_src_input_ids = np.append(train_src_input_ids, aug_input_ids, axis=0)
+        train_src_attention_mask = np.append(train_src_attention_mask, aug_attention_mask, axis=0)
+        train_trg_list = np.append(train_trg_list, aug_label, axis=0)
 
     gc.enable()
     write_log(logger, "Finished loading data!")
@@ -165,7 +184,11 @@ def training(args):
                 # Optimizer setting
                 optimizer.zero_grad(set_to_none=True)
 
-                # Input, output setting
+                # Input setting
+                src_sequence = batch_iter[0]
+                src_att = batch_iter[1]
+                trg_label = batch_iter[2]
+
                 src_sequence = src_sequence.to(device, non_blocking=True)
                 src_att = src_att.to(device, non_blocking=True)
                 trg_label = trg_label.to(device, non_blocking=True)
@@ -173,7 +196,7 @@ def training(args):
                 # Train
                 if phase == 'train':
                     with autocast():
-                        predicted = model(src_input_ids=src_sequence, src_attention_mask=src_att)
+                        predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
                         loss = F.cross_entropy(predicted, trg_label)
 
                     scaler.scale(loss).backward()
@@ -190,17 +213,15 @@ def training(args):
 
                     # Print loss value only training
                     if i == 0 or freq == args.print_freq or i==len(dataloader_dict['train']):
-                        acc = (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                        acc = (predicted.max(dim=1)[1] == trg_label.argmax(dim=1)).sum() / len(trg_label)
                         iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.2f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
-                            (epoch, i, len(dataloader_dict['train']), 
-                            loss, acc*100, optimizer.param_groups[0]['lr'], 
-                            (time() - start_time_e) / 60)
+                            (epoch, i, len(dataloader_dict['train']), loss, acc*100, optimizer.param_groups[0]['lr'], (time() - start_time_e) / 60)
                         write_log(logger, iter_log)
                         freq = 0
                     freq += 1
 
                     if args.use_tensorboard:
-                        acc = (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                        acc = (predicted.max(dim=1)[1] == trg_label.argmax(dim=1)).sum() / len(trg_label)
                         
                         tb_writer.add_scalar('TRAIN/Loss', loss, (epoch-1) * len(dataloader_dict['train']) + i)
                         tb_writer.add_scalar('TRAIN/Accuracy', acc*100, (epoch-1) * len(dataloader_dict['train']) + i)
@@ -211,13 +232,10 @@ def training(args):
                 # Validation
                 if phase == 'valid':
                     with torch.no_grad():
-                        predicted, dist_loss = model(src_input_ids=src_sequence, src_attention_mask=src_att,
-                                                     src_img=src_img, trg_label=trg_label,
-                                                     trg_input_ids=trg_sequence, trg_attention_mask=trg_att,
-                                                     non_pad_position=non_pad, tgt_subsqeunt_mask=tgt_subsqeunt_mask)
-                        loss = F.cross_entropy(predicted, trg_label)
+                        predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
+                        loss = F.cross_entropy(predicted, trg_label.argmax(dim=1))
                     val_loss += loss
-                    val_acc += (predicted.max(dim=1)[1] == trg_label).sum() / len(trg_label)
+                    val_acc += (predicted.max(dim=1)[1] == trg_label.argmax(dim=1)).sum() / len(trg_label.argmax(dim=1))
                     
 
             if phase == 'valid':

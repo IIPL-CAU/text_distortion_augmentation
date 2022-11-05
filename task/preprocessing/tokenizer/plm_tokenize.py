@@ -38,23 +38,37 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         else:
             raise Exception(f'{language} language does not support')
 
-    for phase in ['train', 'valid', 'test']:
+    if args.augmenting:
         encoded_dict = \
         tokenizer(
-            sequence_dict[phase],
+            sequence_dict['aug'].tolist(),
             max_length=max_len,
             padding='max_length',
             truncation=True
         )
-        processed_sequences[phase]['input_ids'] = encoded_dict['input_ids']
-        processed_sequences[phase]['attention_mask'] = encoded_dict['attention_mask']
-        if args.tokenizer == 'bert':
-            processed_sequences[phase]['token_type_ids'] = encoded_dict['token_type_ids']
+        processed_sequences['aug'] = encoded_dict['input_ids']
+        processed_sequences['aug_mask'] = encoded_dict['attention_mask']
+        # if args.tokenizer == 'bert':
+        #     processed_sequences[phase]['token_type_ids'] = encoded_dict['token_type_ids']
 
-    # BART's decoder input id need to start with 'model.config.decoder_start_token_id'
-    if args.tokenizer == 'bart' and domain == 'trg':
-        for i in range(len(processed_sequences[phase]['input_ids'])):
-            processed_sequences[phase]['input_ids'][i][0] = 2
+    else:
+        for phase in ['train', 'valid', 'test']:
+            encoded_dict = \
+            tokenizer(
+                sequence_dict[phase],
+                max_length=max_len,
+                padding='max_length',
+                truncation=True
+            )
+            processed_sequences[phase]['input_ids'] = encoded_dict['input_ids']
+            processed_sequences[phase]['attention_mask'] = encoded_dict['attention_mask']
+            if args.tokenizer == 'bert':
+                processed_sequences[phase]['token_type_ids'] = encoded_dict['token_type_ids']
+
+        # BART's decoder input id need to start with 'model.config.decoder_start_token_id'
+        if args.tokenizer == 'bart' and domain == 'trg':
+            for i in range(len(processed_sequences[phase]['input_ids'])):
+                processed_sequences[phase]['input_ids'][i][0] = 2
     
     word2id = tokenizer.get_vocab()
 

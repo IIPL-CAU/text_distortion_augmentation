@@ -23,10 +23,6 @@ def total_data_load(args):
     src_list = dict()
     trg_list = dict()
 
-    #===================================#
-    #==========Classification===========#
-    #===================================#
-
     if args.data_name == 'korean_hate_speech':
         args.data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
 
@@ -123,9 +119,9 @@ def total_data_load(args):
         args.data_path = os.path.join(args.data_path,'nsmc')
 
         train_dat = pd.read_csv(os.path.join(args.data_path, 'ratings_train.txt'), 
-                                sep='\t', names=['id', 'description', 'label'], header=0)
+                                sep='\t', names=['id', 'description', 'label'], header=0).dropna()
         test_dat = pd.read_csv(os.path.join(args.data_path, 'ratings_test.txt'), 
-                                    sep='\t', names=['id', 'description', 'label'], header=0)
+                                    sep='\t', names=['id', 'description', 'label'], header=0).dropna()
 
         train_index, valid_index, test_index = data_split_index(train_dat, test_ratio=0)
 
@@ -139,3 +135,37 @@ def total_data_load(args):
         trg_list['test'] = test_dat['label'].tolist()
 
     return src_list, trg_list
+
+def aug_data_load(args):
+
+    aug_src_list = dict()
+    aug_trg_list = dict()
+
+    if 'korpora' in args.aug_data_name:
+        args.data_path = os.path.join(args.data_path, 'korpora')
+
+        if 'kr' in args.aug_data_name:
+            dat = pd.read_csv(os.path.join(args.data_path, 'pair_kor.csv'), names=['kr']).dropna()
+
+            aug_src_list['aug'] = dat['kr']
+
+        if 'en' in args.aug_data_name:
+            dat = pd.read_csv(os.path.join(args.data_path, 'pair_eng.csv'), names=['en']).dropna()
+
+            aug_src_list['aug'] = dat['en']
+
+    # AIHUB
+
+    if 'aihub' in args.aug_data_name:
+        args.data_path = os.path.join(args.data_path,'AI_Hub_KR_EN')
+        dat = pd.read_csv(os.path.join(args.data_path, '1_구어체(1).csv')).dropna()
+
+        if 'kr' in args.aug_data_name:
+            aug_src_list['aug'] = dat['KR']
+
+        if 'en' in args.aug_data_name:
+            aug_src_list['aug'] = dat['EN']
+
+    aug_trg_list['aug'] = [-1 for _ in range(len(aug_src_list['aug']))]
+
+    return aug_src_list, aug_trg_list
