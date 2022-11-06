@@ -199,12 +199,15 @@ def training(args):
                         predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
                         loss = F.cross_entropy(predicted, trg_label)
 
-                    scaler.scale(loss).backward()
-                    if args.clip_grad_norm > 0:
-                        scaler.unscale_(optimizer)
-                        clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                    scaler.step(optimizer)
-                    scaler.update()
+                    # scaler.scale(loss).backward()
+                    # if args.clip_grad_norm > 0:
+                    #     scaler.unscale_(optimizer)
+                    #     clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+                    # scaler.step(optimizer)
+                    # scaler.update()
+                    loss.backward()
+                    clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+                    optimizer.step()
 
                     if args.scheduler in ['constant', 'warmup']:
                         scheduler.step()
