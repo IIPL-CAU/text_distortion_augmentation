@@ -49,9 +49,9 @@ def augmenting(args):
         src_language = 'en'
 
     if args.tokenizer == 'spm':
-        processed_src, word2id_src = spm_tokenizing(src_list, args, domain='src')
+        processed_src, word2id_src = spm_tokenizing(src_list, args, domain='aug')
     else:
-        processed_src, word2id_src = plm_tokenizing(src_list, args, domain='src', language=src_language)
+        processed_src, word2id_src = plm_tokenizing(src_list, args, domain='aug', language=src_language)
 
     write_log(logger, f'Done! ; {round((time.time()-start_time)/60, 3)}min spend')
 

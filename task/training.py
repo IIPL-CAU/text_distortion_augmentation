@@ -118,7 +118,7 @@ def training(args):
                             parallel=args.parallel)
     elif args.model_type == 'bert':
         if src_language == 'kr':
-            model = BertForSequenceClassification.from_pretrained('beomi/kobert', num_labels=num_labels)
+            model = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
     elif args.model_type == 'bart':
         if src_language == 'kr':
             model = BartForSequenceClassification.from_pretrained('cosmoquester/bart-ko-mini', num_labels=num_labels)

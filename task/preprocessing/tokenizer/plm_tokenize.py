@@ -11,16 +11,11 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
     processed_sequences['valid'] = dict()
     processed_sequences['test'] = dict()
 
-    if domain == 'src':
-        max_len = args.src_max_len
-    if domain == 'trg':
-        max_len = args.trg_max_len
-
     if args.tokenizer == 'bert':
         if language == 'en':
             tokenizer =  AutoTokenizer.from_pretrained('bert-base-cased')
         elif language == 'kr':
-            tokenizer =  AutoTokenizer.from_pretrained('beomi/kobert')
+            tokenizer =  AutoTokenizer.from_pretrained('beomi/kcbert-base')
         else:
             raise Exception(f'{language} language does not support')
     elif args.tokenizer == 'bart':
@@ -38,11 +33,11 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
         else:
             raise Exception(f'{language} language does not support')
 
-    if args.augmenting:
+    if domain == 'aug':
         encoded_dict = \
         tokenizer(
             sequence_dict['aug'].tolist(),
-            max_length=max_len,
+            max_length=args.src_max_len,
             padding='max_length',
             truncation=True
         )
