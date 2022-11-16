@@ -197,6 +197,8 @@ def training(args):
                 if phase == 'train':
                     with autocast():
                         predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
+                        print(predicted)
+                        print(trg_label)
                         loss = F.cross_entropy(predicted, trg_label)
 
                     # scaler.scale(loss).backward()

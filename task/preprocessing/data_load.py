@@ -116,11 +116,11 @@ def total_data_load(args):
         trg_list['test'] = [trg_class[i] for i in test_index]
 
     if args.data_name == 'NSMC':
-        args.data_path = os.path.join(args.data_path,'nsmc')
+        nsmc_data_path = os.path.join(args.data_path,'nsmc')
 
-        train_dat = pd.read_csv(os.path.join(args.data_path, 'ratings_train.txt'), 
+        train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
                                 sep='\t', names=['id', 'description', 'label'], header=0).dropna()
-        test_dat = pd.read_csv(os.path.join(args.data_path, 'ratings_test.txt'), 
+        test_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_test.txt'), 
                                     sep='\t', names=['id', 'description', 'label'], header=0).dropna()
 
         train_index, valid_index, test_index = data_split_index(train_dat, test_ratio=0)
@@ -142,15 +142,15 @@ def aug_data_load(args):
     aug_trg_list = dict()
 
     if 'korpora' in args.aug_data_name:
-        args.data_path = os.path.join(args.data_path, 'korpora')
+        korpora_data_path = os.path.join(args.data_path, 'korpora')
 
         if 'kr' in args.aug_data_name:
-            dat = pd.read_csv(os.path.join(args.data_path, 'pair_kor.csv'), names=['kr']).dropna()
+            dat = pd.read_csv(os.path.join(korpora_data_path, 'pair_kor.csv'), names=['kr']).dropna()
 
             aug_src_list['aug'] = dat['kr']
 
         if 'en' in args.aug_data_name:
-            dat = pd.read_csv(os.path.join(args.data_path, 'pair_eng.csv'), names=['en']).dropna()
+            dat = pd.read_csv(os.path.join(korpora_data_path, 'pair_eng.csv'), names=['en']).dropna()
 
             aug_src_list['aug'] = dat['en']
 

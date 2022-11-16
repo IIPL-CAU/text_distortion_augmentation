@@ -51,7 +51,7 @@ def plm_tokenizing(sequence_dict: dict, args: argparse.Namespace,
             encoded_dict = \
             tokenizer(
                 sequence_dict[phase],
-                max_length=max_len,
+                max_length=args.src_max_len,
                 padding='max_length',
                 truncation=True
             )
