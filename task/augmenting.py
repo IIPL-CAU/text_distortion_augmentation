@@ -43,7 +43,7 @@ def augmenting(args):
     write_log(logger, 'Tokenizer setting...')
     start_time = time.time()
 
-    if args.aug_data_name in ['korpora_kr', 'aihub_kr']:
+    if args.aug_data_name in ['korpora_kr', 'aihub_kr', 'korean_hate_speech', 'nsmc']:
         src_language = 'kr'
     elif args.aug_data_name in ['korpora_en', 'aihub_en']:
         src_language = 'en'
@@ -63,7 +63,7 @@ def augmenting(args):
     start_time = time.time()
 
     # Path checking
-    save_path = os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer)
+    save_path = os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer, args.aug_type)
 
     if args.tokenizer == 'spm':
         save_name = f'aug_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'

@@ -1,5 +1,6 @@
 # Import modules
 import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import gc
 import psutil
 import h5py
@@ -75,7 +76,7 @@ def training(args):
         del data_
 
     if args.train_with_aug:
-        save_path = os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer)
+        save_path = os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer, args.aug_type)
         if args.tokenizer == 'spm':
             save_name = f'aug_{args.sentencepiece_model}_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}.hdf5'
         else:
@@ -85,7 +86,10 @@ def training(args):
             aug_input_ids = f.get('aug_input_ids')[:]
             aug_attention_mask = f.get('aug_attention_mask')[:]
             aug_label = f.get('aug_label')[:]
-            aug_label = torch.full((len(aug_label), num_labels), 1 / num_labels).numpy()
+            if aug_label[0] == -1:
+                aug_label = torch.full((len(aug_label), num_labels), 1 / num_labels).numpy()
+            else:
+                aug_label = F.one_hot(torch.tensor(aug_label, dtype=torch.long)).numpy()
 
         train_src_input_ids = np.append(train_src_input_ids, aug_input_ids, axis=0)
         train_src_attention_mask = np.append(train_src_attention_mask, aug_attention_mask, axis=0)
@@ -197,8 +201,6 @@ def training(args):
                 if phase == 'train':
                     with autocast():
                         predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
-                        print(predicted)
-                        print(trg_label)
                         loss = F.cross_entropy(predicted, trg_label)
 
                     # scaler.scale(loss).backward()

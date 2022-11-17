@@ -65,6 +65,10 @@ def model_save_name(args):
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
+    # Augmentation
+    if args.train_with_aug:
+        save_name_pre += f'_aug_{args.aug_type}_augdat_{args.aug_data_name}'
+
     # SentencePiece
     if args.tokenizer == 'spm':
         save_name_pre += f'_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}'

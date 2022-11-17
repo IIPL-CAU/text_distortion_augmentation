@@ -49,8 +49,6 @@ if __name__=='__main__':
                         help='Original data path')
     parser.add_argument('--data_name', default='WMT2016_Multimodal', type=str,
                         help='Data name; Default is WMT2016_Multimodal')
-    parser.add_argument('--aug_data_name', default='korpora_kr', type=str,
-                        help='Data name; Default is korpora_kr')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
     parser.add_argument('--model_save_path', default='/HDD/kyohoon1/model_checkpoint/latent', type=str,
@@ -83,6 +81,11 @@ if __name__=='__main__':
                         help='Padding token index; Default is 1')
     parser.add_argument('--eos_id', default=2, type=int,
                         help='Padding token index; Default is 2')
+    # Augmentation setting
+    parser.add_argument('--aug_data_name', default='korpora_kr', type=str,
+                        help='Augmenting data name; Default is korpora_kr')
+    parser.add_argument('--aug_type', default='ood', type=str,
+                        help='; Default is ood')
     # Model setting
     # 0) Model selection
     parser.add_argument('--model_type', default='custom_transformer', type=str, choices=[

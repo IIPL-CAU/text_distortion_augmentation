@@ -24,11 +24,11 @@ def total_data_load(args):
     trg_list = dict()
 
     if args.data_name == 'korean_hate_speech':
-        args.data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
 
-        train_dat = pd.read_csv(os.path.join(args.data_path, 'train.hate.csv'))
-        valid_dat = pd.read_csv(os.path.join(args.data_path, 'dev.hate.csv'))
-        test_dat = pd.read_csv(os.path.join(args.data_path, 'test.hate.no_label.csv'))
+        train_dat = pd.read_csv(os.path.join(hate_data_path, 'train.hate.csv'))
+        valid_dat = pd.read_csv(os.path.join(hate_data_path, 'dev.hate.csv'))
+        test_dat = pd.read_csv(os.path.join(hate_data_path, 'test.hate.no_label.csv'))
 
         train_dat['label'] = train_dat['label'].replace('none', 0)
         train_dat['label'] = train_dat['label'].replace('hate', 1)
@@ -166,6 +166,41 @@ def aug_data_load(args):
         if 'en' in args.aug_data_name:
             aug_src_list['aug'] = dat['EN']
 
-    aug_trg_list['aug'] = [-1 for _ in range(len(aug_src_list['aug']))]
+    # Korean hate speech
+
+    if 'korean_hate_speech' in args.aug_data_name:
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+        if args.aug_type == 'half':
+            dat = pd.read_csv(os.path.join(hate_data_path, 'train_half.tsv'), sep='\t').dropna()
+            aug_src_list['aug'] = dat['comments']
+            args.aug_type = 'half'
+
+        elif args.aug_type == 'origin':
+            dat = pd.read_csv(os.path.join(hate_data_path, 'train_origin.tsv'), sep='\t').dropna()
+            aug_src_list['aug'] = dat['comments']
+            aug_trg_list['aug'] = dat['label'].tolist()
+            args.aug_type = 'origin'
+        else:
+            raise Exception("OOD?!")
+
+    # NSMC
+
+    if 'nsmc_cbert' in args.aug_data_name:
+        nsmc_data_path = os.path.join(args.data_path,'nsmc')
+        if args.aug_type == 'half':
+            dat = pd.read_csv(os.path.join(nsmc_data_path, 'train_half.tsv'), sep='\t', names=['comments', 'label']).dropna()
+            aug_src_list['aug'] = dat['comments']
+            args.aug_type = 'half'
+
+        elif args.aug_type == 'origin':
+            dat = pd.read_csv(os.path.join(nsmc_data_path, 'train_origin.tsv'), sep='\t', names=['comments', 'label']).dropna()
+            aug_src_list['aug'] = dat['comments']
+            aug_trg_list['aug'] = dat['label'].tolist()
+            args.aug_type = 'origin'
+        else:
+            raise Exception("OOD?!")
+
+    if len(aug_trg_list) == 0:
+        aug_trg_list['aug'] = [-1 for _ in range(len(aug_src_list['aug']))]
 
     return aug_src_list, aug_trg_list
