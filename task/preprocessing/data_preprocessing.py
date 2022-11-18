@@ -43,7 +43,7 @@ def data_preprocessing(args):
     write_log(logger, 'Tokenizer setting...')
     start_time = time.time()
 
-    if args.data_name in ['korean_hate_speech', 'NSMC', 'korpora_kr']:
+    if args.data_name in ['korean_hate_speech', 'nsmc', 'korpora_kr']:
         src_language = 'kr'
     elif args.data_name in ['IMDB', 'ProsCons', 'MR']:
         src_language = 'en'

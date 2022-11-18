@@ -115,7 +115,7 @@ def total_data_load(args):
         src_list['test'] = [src_text[i] for i in test_index]
         trg_list['test'] = [trg_class[i] for i in test_index]
 
-    if args.data_name == 'NSMC':
+    if args.data_name == 'nsmc':
         nsmc_data_path = os.path.join(args.data_path,'nsmc')
 
         train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
@@ -185,7 +185,7 @@ def aug_data_load(args):
 
     # NSMC
 
-    if 'nsmc_cbert' in args.aug_data_name:
+    if 'nsmc' in args.aug_data_name:
         nsmc_data_path = os.path.join(args.data_path,'nsmc')
         if args.aug_type == 'half':
             dat = pd.read_csv(os.path.join(nsmc_data_path, 'train_half.tsv'), sep='\t', names=['comments', 'label']).dropna()
