@@ -5,6 +5,7 @@ import argparse
 from task.preprocessing.data_preprocessing import data_preprocessing
 from task.training import training
 from task.augmenting import augmenting
+from task.testing import testing
 # Utils
 from utils import str2bool, path_check, set_random_seed
 

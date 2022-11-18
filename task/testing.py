@@ -23,7 +23,7 @@ from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
 from task.utils import model_save_name
 
-def training(args):
+def testing(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     #===================================#
@@ -41,7 +41,7 @@ def training(args):
         tb_writer = SummaryWriter(os.path.join(args.tensorboard_path, get_tb_exp_name(args)))
         tb_writer.add_text('args', str(args))
 
-    write_log(logger, 'Start training!')
+    write_log(logger, 'Start testing!')
 
     #===================================#
     #============Data Load==============#
@@ -140,7 +140,7 @@ def training(args):
                 predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
 
             predicted_list.extend(predicted.max(dim=1)[1].cpu().tolist())
-            ground_truth_list.extend(trg_label.cpu.tolist())
+            ground_truth_list.extend(trg_label.cpu().tolist())
             
     ground_truth_list = [int(x) for x in ground_truth_list]
 
