@@ -7,8 +7,9 @@ import logging
 import multiprocessing
 import numpy as np
 from tqdm import tqdm
+from googletrans import Translator
 from ktextaug import TextAugmentation
-from transformers import  AutoTokenizer
+from transformers import AutoTokenizer
 # Import custom modules
 from task.utils import total_data_load
 from utils import TqdmLoggingHandler, write_log
@@ -74,84 +75,87 @@ def preprocessing(args):
     start_time = time.time()
     agent = TextAugmentation(tokenizer="mecab", num_processes=1)
 
-    # processed_sequences['bt'] = dict()
-    # processed_sequences['bt']['label'] = list()
+    processed_sequences['bt'] = dict()
+    processed_sequences['bt']['label'] = list()
     processed_sequences['eda'] = dict()
     processed_sequences['ood'] = dict()
 
     # Back-translation
-    # write_log(logger, 'Back-translation...')
-    # manager = multiprocessing.Manager()
-    # bt_src = manager.list()
-    # bt_trg = manager.list()
+    write_log(logger, 'Back-translation...')
 
-    # len_ = len(src_list['train'])
-    # def list_chuck(arr, n):
-    #     return [arr[i: i + n] for i in range(0, len(arr), n)]
-    # src_chunk = list_chuck(src_list['train'], int(len(src_list['train'])/8))
-    # trg_chunk = list_chuck(trg_list['train'], int(len(trg_list['train'])/8))
+    translator = Translator()
+    manager = multiprocessing.Manager()
+    bt_src = manager.list()
+    bt_trg = manager.list()
 
-    # def bt_multi(a_list, b_list):
-    #     for i in range(len(a_list)):
-    #         bt_src.append(agent.generate(a_list[i]))
-    #         bt_trg.append(b_list[i])
+    len_ = len(src_list['train'])
+    def list_chuck(arr, n):
+        return [arr[i: i + n] for i in range(0, len(arr), n)]
+    src_chunk = list_chuck(src_list['train'], int(len(src_list['train'])/8))
+    trg_chunk = list_chuck(trg_list['train'], int(len(trg_list['train'])/8))
 
-    # manager = multiprocessing.Manager()
-    # process1 = multiprocessing.Process(target=bt_multi, args=[src_chunk[0], trg_chunk[0]])
-    # process2 = multiprocessing.Process(target=bt_multi, args=[src_chunk[1], trg_chunk[1]])
-    # process3 = multiprocessing.Process(target=bt_multi, args=[src_chunk[2], trg_chunk[2]])
-    # process4 = multiprocessing.Process(target=bt_multi, args=[src_chunk[3], trg_chunk[3]])
-    # process5 = multiprocessing.Process(target=bt_multi, args=[src_chunk[4], trg_chunk[4]])
-    # process6 = multiprocessing.Process(target=bt_multi, args=[src_chunk[5], trg_chunk[5]])
-    # process7 = multiprocessing.Process(target=bt_multi, args=[src_chunk[6], trg_chunk[6]])
-    # process8 = multiprocessing.Process(target=bt_multi, args=[src_chunk[7], trg_chunk[7]])
+    def bt_multi(a_list, b_list):
+        for i in tqdm(range(len(a_list)), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
+            out1 = translator.translate(a_list[i], dest='en')
+            time.sleep(0.5)
+            out2 = translator.translate(out1.text, dest='ko')
+            time.sleep(0.5)
+            bt_src.append(out2.text)
+            bt_trg.append(b_list[i])
 
-    # process1.start()
-    # process2.start()
-    # process3.start()
-    # process4.start()
-    # process5.start()
-    # process6.start()
-    # process7.start()
-    # process8.start()
+    manager = multiprocessing.Manager()
+    process1 = multiprocessing.Process(target=bt_multi, args=[src_chunk[0], trg_chunk[0]])
+    process2 = multiprocessing.Process(target=bt_multi, args=[src_chunk[1], trg_chunk[1]])
+    process3 = multiprocessing.Process(target=bt_multi, args=[src_chunk[2], trg_chunk[2]])
+    process4 = multiprocessing.Process(target=bt_multi, args=[src_chunk[3], trg_chunk[3]])
+    process5 = multiprocessing.Process(target=bt_multi, args=[src_chunk[4], trg_chunk[4]])
+    process6 = multiprocessing.Process(target=bt_multi, args=[src_chunk[5], trg_chunk[5]])
+    process7 = multiprocessing.Process(target=bt_multi, args=[src_chunk[6], trg_chunk[6]])
+    process8 = multiprocessing.Process(target=bt_multi, args=[src_chunk[7], trg_chunk[7]])
 
-    # process1.join()
-    # process2.join()
-    # process3.join()
-    # process4.join()
-    # process5.join()
-    # process6.join()
-    # process7.join()
-    # process8.join()
+    process1.start()
+    process2.start()
+    process3.start()
+    process4.start()
+    process5.start()
+    process6.start()
+    process7.start()
+    process8.start()
 
-    # print(list(bt_src))
-    # print(len(bt_src))
-    # assert len(bt_src) == len(src_list['train'])
+    process1.join()
+    process2.join()
+    process3.join()
+    process4.join()
+    process5.join()
+    process6.join()
+    process7.join()
+    process8.join()
 
-    # write_log(logger, 'Back-translation Done')
-    # write_log(logger, 'Back-translation Tokenizing...')
+    assert len(bt_src) == len(src_list['train'])
 
-    # # for i in tqdm(range(len(src_list['train'])), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-    # #     bt_src.append(agent.generate(src_list['train'][i]))
+    # for text in tqdm(src_list['train'], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
+    #     out1 = translator.translate(text, dest='en')
+    #     out2 = translator.translate(out1.text, dest='ko')
+    #     bt_src.append(out2.text)
 
-    # encoded_dict = \
-    # tokenizer(
-    #     list(bt_src),
-    #     max_length=args.src_max_len,
-    #     padding='max_length',
-    #     truncation=True
-    # )
-    # processed_sequences['bt']['input_ids'] = encoded_dict['input_ids']
-    # processed_sequences['bt']['attention_mask'] = encoded_dict['attention_mask']
-    # processed_sequences['bt']['token_type_ids'] = encoded_dict['token_type_ids']
+    encoded_dict = \
+    tokenizer(
+        bt_src,
+        max_length=args.src_max_len,
+        padding='max_length',
+        truncation=True
+    )
+    processed_sequences['bt']['input_ids'] = encoded_dict['input_ids']
+    processed_sequences['bt']['attention_mask'] = encoded_dict['attention_mask']
+    processed_sequences['bt']['token_type_ids'] = encoded_dict['token_type_ids']
 
-    # write_log(logger, 'Back-translation Tokenizing Done')
+    write_log(logger, 'Back-translation Tokenizing Done')
 
     # Easy Data Augmentation
     write_log(logger, 'EDA...')
     eda_src = list()
     for i in tqdm(range(len(src_list['train'])), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-        eda_ = random.choice(['random_insert', 'random_delete', 'random_swap', 'synonym_replace'])
+        eda_ = random.choice(['random_insert', 'random_delete', 'random_swap'])
         eda_src.append(agent.generate(src_list['train'][i], mode=eda_))
 
     encoded_dict = \
@@ -210,9 +214,9 @@ def preprocessing(args):
         f.create_dataset('valid_label', data=np.array(trg_list['valid']).astype(int))
 
     with h5py.File(os.path.join(save_path, 'aug_' + save_name), 'w') as f:
-        # f.create_dataset('train_bt_src_input_ids', data=processed_sequences['bt']['input_ids'])
-        # f.create_dataset('train_bt_src_attention_mask', data=processed_sequences['bt']['attention_mask'])
-        # f.create_dataset('train_bt_label', data=processed_sequences['bt']['label'])
+        f.create_dataset('train_bt_src_input_ids', data=processed_sequences['bt']['input_ids'])
+        f.create_dataset('train_bt_src_attention_mask', data=processed_sequences['bt']['attention_mask'])
+        f.create_dataset('train_label', data=np.array(bt_trg).astype(int))
         f.create_dataset('train_eda_src_input_ids', data=processed_sequences['eda']['input_ids'])
         f.create_dataset('train_eda_src_attention_mask', data=processed_sequences['eda']['attention_mask'])
         f.create_dataset('train_ood_src_input_ids', data=processed_sequences['ood']['input_ids'])

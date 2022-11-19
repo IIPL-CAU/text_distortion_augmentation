@@ -94,15 +94,9 @@ def training(args):
     write_log(logger, 'Instantiating model...')
 
     total_model_dict = dict()
-    total_model_dict['train_original'] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
-    total_model_dict['train_bt'] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
-    total_model_dict['train_eda'] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
-    total_model_dict['train_ood'] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
-    
-    total_model_dict['train_original'].to(device)
-    total_model_dict['train_bt'].to(device)
-    total_model_dict['train_eda'].to(device)
-    total_model_dict['train_ood'].to(device)
+    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
+        total_model_dict[total_phase] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
+        total_model_dict[total_phase].to(device)
 
     # 2) Dataloader setting
     dataset_dict = {
@@ -175,8 +169,7 @@ def training(args):
         f.write('acc')
         f.write('\n')
 
-    # for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
-    for total_phase in ['train_original', 'train_eda', 'train_ood']:
+    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
         best_val_loss = 1e+10
         
         for epoch in range(start_epoch + 1, args.num_epochs + 1):
