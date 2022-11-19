@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from ktextaug import TextAugmentation
 from sklearn.preprocessing import LabelEncoder
 
 from datasets import load_dataset
@@ -197,6 +198,11 @@ def aug_data_load(args):
             aug_src_list['aug'] = dat['comments']
             aug_trg_list['aug'] = dat['label'].tolist()
             args.aug_type = 'origin'
+        elif args.aug_type == 'bt':
+            train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
+                                    sep='\t', names=['id', 'description', 'label'], header=0).dropna()
+            agent = TextAugmentation(tokenizer="mecab", num_processes = 1)
+
         else:
             raise Exception("OOD?!")
 

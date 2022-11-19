@@ -30,6 +30,22 @@ def path_check(args):
     if not os.path.exists(os.path.join(args.preprocess_path, args.data_name)):
         os.mkdir(os.path.join(args.preprocess_path, args.data_name))
 
+    if not os.path.exists(os.path.join(args.preprocess_path, args.data_name, args.tokenizer)):
+        os.mkdir(os.path.join(args.preprocess_path, args.data_name, args.tokenizer))
+    
+    if not os.path.exists(args.tensorboard_path):
+        os.mkdir(args.tensorboard_path)
+
+    # Augmenting Path Checking
+    if not os.path.exists(os.path.join(args.preprocess_path, args.aug_data_name)):
+        os.mkdir(os.path.join(args.preprocess_path, args.aug_data_name))
+
+    if not os.path.exists(os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer)):
+        os.mkdir(os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer))
+
+    if not os.path.exists(os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer, args.aug_type)):
+        os.mkdir(os.path.join(args.preprocess_path, args.aug_data_name, args.tokenizer, args.aug_type))
+
     # Model Checkpoint Path Checking
     if not os.path.exists(args.model_save_path):
         os.mkdir(args.model_save_path)

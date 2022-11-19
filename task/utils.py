@@ -1,103 +1,137 @@
 import os
-import torch
-from torch.nn import functional as F
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
-def input_to_device(args, batch_iter, device):
-    # Input, output setting
-    if args.task in ['translation', 'style_transfer', 'summarization', 'reconstruction']:
-        src_sequence = batch_iter[0]
-        src_att = batch_iter[1]
-        trg_sequence = batch_iter[2]
-        trg_att = batch_iter[3]
-        src_img = None
-        trg_label = None
+from datasets import load_dataset
 
-        src_sequence = src_sequence.to(device, non_blocking=True)
-        src_att = src_att.to(device, non_blocking=True)
-        trg_sequence = trg_sequence.to(device, non_blocking=True)
-        trg_att = trg_att.to(device, non_blocking=True)
+def data_split_index(seq, valid_ration: float = 0.1, test_ratio: float = 0.03):
 
-    elif args.task in ['classification']:
-        src_sequence = batch_iter[0]
-        src_att = batch_iter[1]
-        trg_label = batch_iter[2]
-        src_img = None
-        trg_sequence = None
-        trg_att = None
+    paired_data_len = len(seq)
+    valid_num = int(paired_data_len * valid_ration)
+    test_num = int(paired_data_len * test_ratio)
 
-        src_sequence = src_sequence.to(device, non_blocking=True)
-        src_att = src_att.to(device, non_blocking=True)
-        trg_label = trg_label.to(device, non_blocking=True)
+    valid_index = np.random.choice(paired_data_len, valid_num, replace=False)
+    train_index = list(set(range(paired_data_len)) - set(valid_index))
+    test_index = np.random.choice(train_index, test_num, replace=False)
+    train_index = list(set(train_index) - set(test_index))
 
-    elif args.task in ['multi-modal_classification']:
-        src_sequence = batch_iter[0]
-        src_att = batch_iter[1]
-        src_img = batch_iter[2]
-        trg_label = batch_iter[3]
-        trg_sequence = None
-        trg_att = None
+    return train_index, valid_index, test_index
 
-        src_sequence = src_sequence.to(device, non_blocking=True)
-        src_att = src_att.to(device, non_blocking=True)
-        src_img = src_img.to(device, non_blocking=True)
-        trg_label = trg_label.to(device, non_blocking=True)
+def total_data_load(args):
 
-    return src_sequence, src_att, src_img, trg_label, trg_sequence, trg_att
+    src_list = dict()
+    trg_list = dict()
 
+    if args.data_name == 'korean_hate_speech':
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
 
-def label_smoothing_loss(pred, gold, trg_pad_idx, smoothing_eps=0.1):
-    ''' Calculate cross entropy loss, apply label smoothing if needed. '''
-    gold = gold.contiguous().view(-1)
-    n_class = pred.size(1)
+        train_dat = pd.read_csv(os.path.join(hate_data_path, 'train.hate.csv'))
+        valid_dat = pd.read_csv(os.path.join(hate_data_path, 'dev.hate.csv'))
+        test_dat = pd.read_csv(os.path.join(hate_data_path, 'test.hate.no_label.csv'))
 
-    one_hot = torch.zeros_like(pred).scatter(1, gold.view(-1, 1), 1)
-    one_hot = one_hot * (1 - smoothing_eps) + (1 - one_hot) * smoothing_eps / (n_class - 1)
-    log_prb = F.log_softmax(pred, dim=1)
+        train_dat['label'] = train_dat['label'].replace('none', 0)
+        train_dat['label'] = train_dat['label'].replace('hate', 1)
+        train_dat['label'] = train_dat['label'].replace('offensive', 2)
+        valid_dat['label'] = valid_dat['label'].replace('none', 0)
+        valid_dat['label'] = valid_dat['label'].replace('hate', 1)
+        valid_dat['label'] = valid_dat['label'].replace('offensive', 2)
 
-    non_pad_mask = gold.ne(trg_pad_idx)
-    loss = -(one_hot * log_prb).sum(dim=1)
-    loss = loss.masked_select(non_pad_mask).mean()
-    return loss
+        src_list['train'] = train_dat['comments'].tolist()
+        trg_list['train'] = train_dat['label'].tolist()
+        src_list['valid'] = valid_dat['comments'].tolist()
+        trg_list['valid'] = valid_dat['label'].tolist()
+        src_list['test'] = test_dat['comments'].tolist()
+        trg_list['test'] = [0 for _ in range(len(test_dat))]
 
-def model_save_name(args):
-    save_path = os.path.join(args.model_save_path, args.data_name, args.tokenizer)
-    save_name_pre = 'checkpoint'
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    if args.data_name == 'nsmc':
+        nsmc_data_path = os.path.join(args.data_path,'nsmc')
 
-    # Augmentation
-    if args.train_with_aug:
-        save_name_pre += f'_aug_{args.aug_type}_augdat_{args.aug_data_name}'
+        train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
+                                sep='\t', names=['id', 'description', 'label'], header=0).dropna()
+        test_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_test.txt'), 
+                                    sep='\t', names=['id', 'description', 'label'], header=0).dropna()
 
-    # SentencePiece
-    if args.tokenizer == 'spm':
-        save_name_pre += f'_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}'
+        train_index, valid_index, test_index = data_split_index(train_dat, test_ratio=0)
 
-    # Variational
-    if args.variational:
-        save_name_pre += f'_v_{args.variational_model}'
-        save_name_pre += f'_token_{args.variational_token_processing}'
-        save_name_pre += f'_with_target_{args.variational_with_target}'
-        save_name_pre += f'_cnn_encoder_{args.cnn_encoder}'
-        save_name_pre += f'_cnn_decoder_{args.cnn_decoder}'
-        save_name_pre += f'_latent_add_{args.latent_add_encoder_out}'
-        
-    save_name_pre += '.pth.tar'
-    save_file_name = os.path.join(save_path, save_name_pre)
-    return save_file_name
+        src_list['train'] = [train_dat['description'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train_dat['label'].tolist()[i] for i in train_index]
 
-def results_save_name(args):
-    if not os.path.exists(os.path.join(args.result_path, args.task)):
-        os.mkdir(os.path.join(args.result_path, args.task))
-    if not os.path.exists(os.path.join(args.result_path, args.task, args.data_name)):
-        os.mkdir(os.path.join(args.result_path, args.task, args.data_name))
-    result_path_ = os.path.join(args.result_path, args.task, args.data_name, args.tokenizer)
-    if not os.path.exists(result_path_):
-        os.mkdir(result_path_)
-    if args.tokenizer == 'spm':
-        save_name_pre = f'Result_src_{args.src_vocab_size}_trg_{args.trg_vocab_size}_v_{args.variational_mode}_p_{args.parallel}.csv'
-    else:
-        save_name_pre = f'Result_v_{args.variational_mode}_p_{args.parallel}.csv'
-    save_result_name = os.path.join(result_path_, save_name_pre)
+        src_list['valid'] = [train_dat['description'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train_dat['label'].tolist()[i] for i in valid_index]
 
-    return save_result_name
+        src_list['test'] = test_dat['description'].tolist()
+        trg_list['test'] = test_dat['label'].tolist()
+
+    if args.data_name == 'klue_topic':
+        raise Exception("Not Ready!")
+
+    return src_list, trg_list
+
+def aug_data_load(args):
+
+    aug_src_list = dict()
+    aug_trg_list = dict()
+
+    if 'korpora' in args.aug_data_name:
+        korpora_data_path = os.path.join(args.data_path, 'korpora')
+
+        dat = pd.read_csv(os.path.join(korpora_data_path, 'pair_kor.csv'), names=['kr']).dropna()
+
+        aug_src_list['aug'] = dat['kr']
+
+    # AIHUB
+
+    if 'aihub' in args.aug_data_name:
+        args.data_path = os.path.join(args.data_path,'AI_Hub_KR_EN')
+        dat = pd.read_csv(os.path.join(args.data_path, '1_구어체(1).csv')).dropna()
+
+        if 'kr' in args.aug_data_name:
+            aug_src_list['aug'] = dat['KR']
+
+        if 'en' in args.aug_data_name:
+            aug_src_list['aug'] = dat['EN']
+
+    # Korean hate speech
+
+    if 'korean_hate_speech' in args.aug_data_name:
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+        if args.aug_type == 'half':
+            dat = pd.read_csv(os.path.join(hate_data_path, 'train_half.tsv'), sep='\t').dropna()
+            aug_src_list['aug'] = dat['comments']
+            args.aug_type = 'half'
+
+        elif args.aug_type == 'origin':
+            dat = pd.read_csv(os.path.join(hate_data_path, 'train_origin.tsv'), sep='\t').dropna()
+            aug_src_list['aug'] = dat['comments']
+            aug_trg_list['aug'] = dat['label'].tolist()
+            args.aug_type = 'origin'
+        else:
+            raise Exception("OOD?!")
+
+    # NSMC
+
+    if 'nsmc' in args.aug_data_name:
+        nsmc_data_path = os.path.join(args.data_path,'nsmc')
+        if args.aug_type == 'half':
+            dat = pd.read_csv(os.path.join(nsmc_data_path, 'train_half.tsv'), sep='\t', names=['comments', 'label']).dropna()
+            aug_src_list['aug'] = dat['comments']
+            args.aug_type = 'half'
+
+        elif args.aug_type == 'origin':
+            dat = pd.read_csv(os.path.join(nsmc_data_path, 'train_origin.tsv'), sep='\t', names=['comments', 'label']).dropna()
+            aug_src_list['aug'] = dat['comments']
+            aug_trg_list['aug'] = dat['label'].tolist()
+            args.aug_type = 'origin'
+        elif args.aug_type == 'bt':
+            train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
+                                    sep='\t', names=['id', 'description', 'label'], header=0).dropna()
+            agent = TextAugmentation(tokenizer="mecab", num_processes = 1)
+
+        else:
+            raise Exception("OOD?!")
+
+    if len(aug_trg_list) == 0:
+        aug_trg_list['aug'] = [-1 for _ in range(len(aug_src_list['aug']))]
+
+    return aug_src_list, aug_trg_list
