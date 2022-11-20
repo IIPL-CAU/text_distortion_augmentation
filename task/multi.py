@@ -1,3 +1,4 @@
+import time
 import random
 import multiprocessing
 from tqdm import tqdm
@@ -28,6 +29,7 @@ def multi_bt(train_src_list, train_trg_list):
                 bt_src.append(out2.text)
                 bt_trg.append(b_list[i])
             except:
+                print('except!')
                 bt_src.append(a_list[i])
                 bt_trg.append(b_list[i])
 
@@ -79,7 +81,7 @@ def multi_bt(train_src_list, train_trg_list):
 def multi_eda(train_src_list, train_trg_list):
 
     agent = TextAugmentation(tokenizer="mecab", num_processes=1)
-
+    manager = multiprocessing.Manager()
     eda_src = manager.list()
     eda_trg = manager.list()
 
@@ -89,9 +91,16 @@ def multi_eda(train_src_list, train_trg_list):
 
     def eda_multi(a_list, b_list):
         for i in tqdm(range(len(a_list)), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-            eda_ = random.choice(['random_insert', 'random_delete', 'random_swap'])
-            eda_src.append(agent.generate(a_list[i], mode=eda_))
-            eda_trg.append(b_list[i])
+            try:
+                time.sleep(1)
+                eda_ = random.choice(['random_insert', 'random_delete', 'random_swap'])
+                time.sleep(1)
+                eda_src.append(agent.generate(a_list[i], mode=eda_))
+                eda_trg.append(b_list[i])
+            except:
+                print('except!')
+                eda_src.append(a_list[i])
+                eda_trg.append(b_list[i])
 
     manager = multiprocessing.Manager()
     process1 = multiprocessing.Process(target=eda_multi, args=[src_chunk[0], trg_chunk[0]])

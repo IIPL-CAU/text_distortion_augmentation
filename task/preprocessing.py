@@ -5,11 +5,13 @@ import pickle
 import logging
 import multiprocessing
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from transformers import AutoTokenizer
 # Import custom modules
 from task.utils import total_data_load
 from task.multi import multi_bt, multi_eda
+from task.augmentation.kor_eda import EDA
 from utils import TqdmLoggingHandler, write_log
 
 from datasets import load_dataset
@@ -82,77 +84,6 @@ def preprocessing(args):
 
     bt_src, bt_trg = multi_bt(src_list['train'], trg_list['train'])
 
-    # translator = Translator()
-    # manager = multiprocessing.Manager()
-    # bt_src = manager.list()
-    # bt_trg = manager.list()
-
-    # len_ = len(src_list['train'])
-    # def list_chuck(arr, n):
-    #     return [arr[i: i + n] for i in range(0, len(arr), n)]
-    # src_chunk = list_chuck(src_list['train'], int(len(src_list['train'])/11))
-    # trg_chunk = list_chuck(trg_list['train'], int(len(trg_list['train'])/11))
-
-    # def bt_multi(a_list, b_list):
-    #     for i in tqdm(range(len(a_list)), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-    #         try:
-    #             out1 = translator.translate(a_list[i], dest='en')
-    #             time.sleep(0.6)
-    #             out2 = translator.translate(out1.text, dest='ko')
-    #             time.sleep(0.6)
-    #             bt_src.append(out2.text)
-    #             bt_trg.append(b_list[i])
-    #         except:
-    #             bt_src.append(a_list[i])
-    #             bt_trg.append(b_list[i])
-
-    # manager = multiprocessing.Manager()
-    # process1 = multiprocessing.Process(target=bt_multi, args=[src_chunk[0], trg_chunk[0]])
-    # process2 = multiprocessing.Process(target=bt_multi, args=[src_chunk[1], trg_chunk[1]])
-    # process3 = multiprocessing.Process(target=bt_multi, args=[src_chunk[2], trg_chunk[2]])
-    # process4 = multiprocessing.Process(target=bt_multi, args=[src_chunk[3], trg_chunk[3]])
-    # process5 = multiprocessing.Process(target=bt_multi, args=[src_chunk[4], trg_chunk[4]])
-    # process6 = multiprocessing.Process(target=bt_multi, args=[src_chunk[5], trg_chunk[5]])
-    # process7 = multiprocessing.Process(target=bt_multi, args=[src_chunk[6], trg_chunk[6]])
-    # process8 = multiprocessing.Process(target=bt_multi, args=[src_chunk[7], trg_chunk[7]])
-    # process9 = multiprocessing.Process(target=bt_multi, args=[src_chunk[8], trg_chunk[8]])
-    # process10 = multiprocessing.Process(target=bt_multi, args=[src_chunk[9], trg_chunk[9]])
-    # process11 = multiprocessing.Process(target=bt_multi, args=[src_chunk[10], trg_chunk[10]])
-    # process12 = multiprocessing.Process(target=bt_multi, args=[src_chunk[11], trg_chunk[11]])
-
-    # process1.start()
-    # process2.start()
-    # process3.start()
-    # process4.start()
-    # process5.start()
-    # process6.start()
-    # process7.start()
-    # process8.start()
-    # process9.start()
-    # process10.start()
-    # process11.start()
-    # process12.start()
-
-    # process1.join()
-    # process2.join()
-    # process3.join()
-    # process4.join()
-    # process5.join()
-    # process6.join()
-    # process7.join()
-    # process8.join()
-    # process9.join()
-    # process10.join()
-    # process11.join()
-    # process12.join()
-
-    # assert len(bt_src) == len(src_list['train'])
-
-    # for text in tqdm(src_list['train'], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-    #     out1 = translator.translate(text, dest='en')
-    #     out2 = translator.translate(out1.text, dest='ko')
-    #     bt_src.append(out2.text)
-
     bt_src = list(bt_src)
     encoded_dict = \
     tokenizer(
@@ -169,12 +100,12 @@ def preprocessing(args):
 
     # Easy Data Augmentation
     write_log(logger, 'EDA...')
-    # eda_src = list()
-    # for i in tqdm(range(len(src_list['train'])), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
-    #     eda_ = random.choice(['random_insert', 'random_delete', 'random_swap'])
-    #     eda_src.append(agent.generate(src_list['train'][i], mode=eda_))
 
-    eda_src, eda_trg = multi_eda(src_list['train'], trg_list['train'])
+    eda_src = list()
+    for i in tqdm(range(len(src_list['train'])), bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
+        eda_src.append(EDA(src_list['train'][i], num_aug=1)[1])
+
+    # eda_src, eda_trg = multi_eda(src_list['train'], trg_list['train'])
 
     encoded_dict = \
     tokenizer(
@@ -234,12 +165,13 @@ def preprocessing(args):
     with h5py.File(os.path.join(save_path, 'aug_' + save_name), 'w') as f:
         f.create_dataset('train_bt_src_input_ids', data=processed_sequences['bt']['input_ids'])
         f.create_dataset('train_bt_src_attention_mask', data=processed_sequences['bt']['attention_mask'])
-        f.create_dataset('train_label', data=np.array(bt_trg).astype(int))
+        f.create_dataset('train_bt_label', data=np.array(bt_trg).astype(int))
         f.create_dataset('train_eda_src_input_ids', data=processed_sequences['eda']['input_ids'])
         f.create_dataset('train_eda_src_attention_mask', data=processed_sequences['eda']['attention_mask'])
+        f.create_dataset('train_eda_label', data=np.array(trg_list['train']).astype(int))
         f.create_dataset('train_ood_src_input_ids', data=processed_sequences['ood']['input_ids'])
         f.create_dataset('train_ood_src_attention_mask', data=processed_sequences['ood']['attention_mask'])
-        f.create_dataset('train_label', data=np.array(trg_list['train']).astype(int))
+        f.create_dataset('train_ood_label', data=np.array(trg_list['train']).astype(int))
 
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_sequences['test']['input_ids'])
@@ -248,8 +180,8 @@ def preprocessing(args):
 
     # Word2id pickle file save
     word2id_dict = {
-        'src_language' : src_language, 
-        'src_word2id' : word2id_src,
+        'src_language' : 'kr', 
+        'src_word2id' : tokenizer.get_vocab(),
         'num_labels': len(set(trg_list['train']))
     }
 

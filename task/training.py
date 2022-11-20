@@ -67,17 +67,18 @@ def training(args):
         num_labels = data_['num_labels']
         del data_
 
-    if args.train_with_aug:
-        with h5py.File(os.path.join(save_path, 'aug_' + save_name), 'r') as f:
-            train_bt_src_input_ids = f.get('train_bt_src_input_ids')[:]
-            train_bt_src_attention_mask = f.get('train_bt_src_attention_mask')[:]
-            train_bt_trg_list = train_trg_list
-            train_eda_src_input_ids = f.get('train_eda_src_input_ids')[:]
-            train_eda_src_attention_mask = f.get('train_eda_src_attention_mask')[:]
-            train_bt_trg_list = train_trg_list
-            train_ood_src_input_ids = f.get('train_ood_src_input_ids')[:]
-            train_ood_src_attention_mask = f.get('train_ood_src_attention_mask')[:]
-            train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
+    with h5py.File(os.path.join(save_path, 'aug_' + save_name), 'r') as f:
+        train_bt_src_input_ids = f.get('train_bt_src_input_ids')[:]
+        train_bt_src_attention_mask = f.get('train_bt_src_attention_mask')[:]
+        train_bt_trg_list = f.get('train_bt_label')[:]
+        train_bt_trg_list = F.one_hot(torch.tensor(train_bt_trg_list, dtype=torch.long)).numpy()
+        train_eda_src_input_ids = f.get('train_eda_src_input_ids')[:]
+        train_eda_src_attention_mask = f.get('train_eda_src_attention_mask')[:]
+        train_eda_trg_list = f.get('train_eda_label')[:]
+        train_eda_trg_list = F.one_hot(torch.tensor(train_eda_trg_list, dtype=torch.long)).numpy()
+        train_ood_src_input_ids = f.get('train_ood_src_input_ids')[:]
+        train_ood_src_attention_mask = f.get('train_ood_src_attention_mask')[:]
+        train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
 
         # train_src_input_ids = np.append(train_src_input_ids, aug_input_ids, axis=0)
         # train_src_attention_mask = np.append(train_src_attention_mask, aug_attention_mask, axis=0)
@@ -102,9 +103,9 @@ def training(args):
     dataset_dict = {
         'train_original': CustomDataset(src_list=train_src_input_ids, src_att_list=train_src_attention_mask, 
                                trg_list=train_trg_list, src_max_len=args.src_max_len),
-        # 'train_bt': CustomDataset(src_list=np.append(train_src_input_ids, train_bt_src_input_ids, axis=0), 
-        #                           src_att_list=np.append(train_src_attention_mask, train_bt_src_attention_mask, axis=0), 
-        #                           trg_list=train_trg_list, src_max_len=args.src_max_len),
+        'train_bt': CustomDataset(src_list=np.append(train_src_input_ids, train_bt_src_input_ids, axis=0), 
+                                  src_att_list=np.append(train_src_attention_mask, train_bt_src_attention_mask, axis=0), 
+                                  trg_list=train_trg_list, src_max_len=args.src_max_len),
         'train_eda': CustomDataset(src_list=np.append(train_src_input_ids, train_eda_src_input_ids, axis=0), 
                                    src_att_list=np.append(train_src_attention_mask, train_eda_src_attention_mask, axis=0), 
                                    trg_list=train_trg_list, src_max_len=args.src_max_len),
@@ -118,9 +119,9 @@ def training(args):
         'train_original': DataLoader(dataset_dict['train_original'], drop_last=True,
                             batch_size=args.batch_size, shuffle=True, pin_memory=True,
                             num_workers=args.num_workers),
-        # 'train_bt': DataLoader(dataset_dict['train_bt'], drop_last=True,
-        #                        batch_size=args.batch_size, shuffle=True, pin_memory=True,
-        #                        num_workers=args.num_workers),
+        'train_bt': DataLoader(dataset_dict['train_bt'], drop_last=True,
+                               batch_size=args.batch_size, shuffle=True, pin_memory=True,
+                               num_workers=args.num_workers),
         'train_eda': DataLoader(dataset_dict['train_eda'], drop_last=True,
                                 batch_size=args.batch_size, shuffle=True, pin_memory=True,
                                 num_workers=args.num_workers),
@@ -134,7 +135,7 @@ def training(args):
     write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train_original'])}, {len(dataloader_dict['train_original'])}")
     
     # 3) Optimizer & Learning rate scheduler setting
-    optimizer = optimizer_select(model, args)
+    optimizer = optimizer_select(total_model_dict['train_original'], args)
     scheduler = shceduler_select(optimizer, dataloader_dict, args)
     scaler = GradScaler()
 
@@ -171,6 +172,7 @@ def training(args):
 
     for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
         best_val_loss = 1e+10
+        model = total_model_dict[total_phase]
         
         for epoch in range(start_epoch + 1, args.num_epochs + 1):
             start_time_e = time()
