@@ -40,7 +40,7 @@ def shceduler_select(optimizer, dataloader_dict, args):
         scheduler = ReduceLROnPlateau(optimizer, 'min', patience=int(len(dataloader_dict['train'])*1.5),
                                       factor=0.5)
     elif args.scheduler == 'reduce_valid':
-        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5)
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=50, factor=0.5)
     elif args.scheduler == 'lambda':
         scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: args.lr_lambda ** epoch)
     else:

@@ -4,7 +4,7 @@ import argparse
 # Import custom modules
 from task.preprocessing import preprocessing
 from task.training import training
-# from task.testing import testing
+from task.testing import testing
 # Utils
 from utils import str2bool, path_check, set_random_seed
 
@@ -39,15 +39,15 @@ if __name__=='__main__':
     # Path setting
     parser.add_argument('--preprocess_path', default='./preprocessed', type=str,
                         help='Pre-processed data save path')
-    parser.add_argument('--data_path', default='/HDD/dataset', type=str,
+    parser.add_argument('--data_path', default='/mnt/storage1/dataset', type=str,
                         help='Original data path')
     parser.add_argument('--data_name', default='nsmc', type=str,
                         help='Data name; Default is nsmc')
     parser.add_argument('--cnn_dailymail_ver', default='3.0.0', type=str,
                         help='; Default is 3.0.0')
-    parser.add_argument('--model_save_path', default='/HDD/kyohoon1/model_checkpoint/ood', type=str,
+    parser.add_argument('--model_save_path', default='/mnt/storage1/kyohoon1/model_checkpoint/ood', type=str,
                         help='Model checkpoint file path')
-    parser.add_argument('--result_path', default='/HDD/kyohoon1/results/ood', type=str,
+    parser.add_argument('--result_path', default='/mnt/storage1/kyohoon1/results/ood', type=str,
                         help='Results file path')
     # Optimizer & LR_Scheduler setting
     optim_list = ['AdamW', 'Adam', 'SGD', 'Ralamb']

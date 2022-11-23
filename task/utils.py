@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
@@ -64,7 +65,52 @@ def total_data_load(args):
         trg_list['test'] = test_dat['label'].tolist()
 
     if args.data_name == 'klue_topic':
-        raise Exception("Not Ready!")
+        klue_data_path = os.path.join(args.data_path,'KLUE_TC')
+
+        with open(os.path.join(klue_data_path, 'ynat-v1.1_train.json'), 'r') as f:
+            dat = json.load(f)
+        with open(os.path.join(klue_data_path, 'ynat-v1.1_dev.json'), 'r') as f:
+            test_dat = json.load(f)
+
+        title_list = [t['title'] for t in dat]
+        label_list = [t['label'] for t in dat]
+        test_title_list = [t['title'] for t in test_dat]
+        test_label_list = [t['label'] for t in test_dat]
+
+        train_dat = pd.DataFrame({
+            'description': title_list,
+            'label': label_list
+        })
+        test_dat = pd.DataFrame({
+            'description': test_title_list,
+            'label': test_label_list
+        })
+        train_dat['label'] = train_dat['label'].replace('IT과학', 0)
+        train_dat['label'] = train_dat['label'].replace('경제', 1)
+        train_dat['label'] = train_dat['label'].replace('사회', 2)
+        train_dat['label'] = train_dat['label'].replace('생활문화', 3)
+        train_dat['label'] = train_dat['label'].replace('세계', 4)
+        train_dat['label'] = train_dat['label'].replace('스포츠', 5)
+        train_dat['label'] = train_dat['label'].replace('정치', 6)
+
+        test_dat['label'] = test_dat['label'].replace('IT과학', 0)
+        test_dat['label'] = test_dat['label'].replace('경제', 1)
+        test_dat['label'] = test_dat['label'].replace('사회', 2)
+        test_dat['label'] = test_dat['label'].replace('생활문화', 3)
+        test_dat['label'] = test_dat['label'].replace('세계', 4)
+        test_dat['label'] = test_dat['label'].replace('스포츠', 5)
+        test_dat['label'] = test_dat['label'].replace('정치', 6)
+
+        train_index, valid_index, test_index = data_split_index(train_dat, test_ratio=0)
+
+        src_list['train'] = [train_dat['description'].tolist()[i] for i in train_index]
+        trg_list['train'] = [train_dat['label'].tolist()[i] for i in train_index]
+
+        src_list['valid'] = [train_dat['description'].tolist()[i] for i in valid_index]
+        trg_list['valid'] = [train_dat['label'].tolist()[i] for i in valid_index]
+
+        src_list['test'] = test_dat['description'].tolist()
+        trg_list['test'] = test_dat['label'].tolist()
 
     return src_list, trg_list
 

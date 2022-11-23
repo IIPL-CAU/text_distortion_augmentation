@@ -6,6 +6,8 @@ import h5py
 import pickle
 import psutil
 import logging
+import random
+import datetime
 import numpy as np
 from tqdm import tqdm
 from time import time
@@ -78,7 +80,17 @@ def training(args):
         train_eda_trg_list = F.one_hot(torch.tensor(train_eda_trg_list, dtype=torch.long)).numpy()
         train_ood_src_input_ids = f.get('train_ood_src_input_ids')[:]
         train_ood_src_attention_mask = f.get('train_ood_src_attention_mask')[:]
-        train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
+        if args.data_name == 'nsmc':
+            train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
+        else:
+            random_ix_list = [random.sample(range(num_labels), 2) for x in range(len(train_ood_src_input_ids))]
+            train_ood_trg_list = torch.zeros(len(train_ood_src_input_ids), num_labels)
+            for i in range(len(train_ood_trg_list)):
+                train_ood_trg_list[i][random_ix_list[i]] = torch.tensor([0.5, 0.5])
+
+        train_ood2_src_input_ids = f.get('train_ood2_src_input_ids')[:]
+        train_ood2_src_attention_mask = f.get('train_ood2_src_attention_mask')[:]
+        train_ood2_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
 
         # train_src_input_ids = np.append(train_src_input_ids, aug_input_ids, axis=0)
         # train_src_attention_mask = np.append(train_src_attention_mask, aug_attention_mask, axis=0)
@@ -95,7 +107,7 @@ def training(args):
     write_log(logger, 'Instantiating model...')
 
     total_model_dict = dict()
-    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
+    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood', 'train_ood2']:
         total_model_dict[total_phase] = BertForSequenceClassification.from_pretrained('beomi/kcbert-base', num_labels=num_labels)
         total_model_dict[total_phase].to(device)
 
@@ -105,13 +117,16 @@ def training(args):
                                trg_list=train_trg_list, src_max_len=args.src_max_len),
         'train_bt': CustomDataset(src_list=np.append(train_src_input_ids, train_bt_src_input_ids, axis=0), 
                                   src_att_list=np.append(train_src_attention_mask, train_bt_src_attention_mask, axis=0), 
-                                  trg_list=train_trg_list, src_max_len=args.src_max_len),
+                                  trg_list=np.append(train_trg_list, train_bt_trg_list, axis=0), src_max_len=args.src_max_len),
         'train_eda': CustomDataset(src_list=np.append(train_src_input_ids, train_eda_src_input_ids, axis=0), 
                                    src_att_list=np.append(train_src_attention_mask, train_eda_src_attention_mask, axis=0), 
-                                   trg_list=train_trg_list, src_max_len=args.src_max_len),
+                                   trg_list=np.append(train_trg_list, train_eda_trg_list, axis=0), src_max_len=args.src_max_len),
         'train_ood': CustomDataset(src_list=np.append(train_src_input_ids, train_ood_src_input_ids, axis=0), 
                                    src_att_list=np.append(train_src_attention_mask, train_ood_src_attention_mask, axis=0), 
-                                   trg_list=train_trg_list, src_max_len=args.src_max_len),
+                                   trg_list=np.append(train_trg_list, train_ood_trg_list, axis=0), src_max_len=args.src_max_len),
+        'train_ood2': CustomDataset(src_list=np.append(train_src_input_ids, train_ood2_src_input_ids, axis=0), 
+                                    src_att_list=np.append(train_src_attention_mask, train_ood2_src_attention_mask, axis=0), 
+                                    trg_list=np.append(train_trg_list, train_ood2_trg_list, axis=0), src_max_len=args.src_max_len),
         'valid': CustomDataset(src_list=valid_src_input_ids, src_att_list=valid_src_attention_mask,
                                trg_list=valid_trg_list, src_max_len=args.src_max_len),
     }
@@ -128,6 +143,9 @@ def training(args):
         'train_ood': DataLoader(dataset_dict['train_ood'], drop_last=True,
                                 batch_size=args.batch_size, shuffle=True, pin_memory=True,
                                 num_workers=args.num_workers),
+        'train_ood2': DataLoader(dataset_dict['train_ood2'], drop_last=True,
+                                 batch_size=args.batch_size, shuffle=True, pin_memory=True,
+                                 num_workers=args.num_workers),
         'valid': DataLoader(dataset_dict['valid'], drop_last=False,
                             batch_size=args.batch_size, shuffle=False, pin_memory=True,
                             num_workers=args.num_workers)
@@ -135,8 +153,11 @@ def training(args):
     write_log(logger, f"Total number of trainingsets  iterations - {len(dataset_dict['train_original'])}, {len(dataloader_dict['train_original'])}")
     
     # 3) Optimizer & Learning rate scheduler setting
-    optimizer = optimizer_select(total_model_dict['train_original'], args)
-    scheduler = shceduler_select(optimizer, dataloader_dict, args)
+    optimizer_dict = dict()
+    scheduler_dict = dict()
+    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood', 'train_ood2']:
+        optimizer_dict[total_phase] = optimizer_select(total_model_dict[total_phase], args)
+        scheduler_dict[total_phase] = shceduler_select(optimizer_dict[total_phase], dataloader_dict, args)
     scaler = GradScaler()
 
     # 3) Model resume
@@ -160,7 +181,10 @@ def training(args):
 
     write_log(logger, 'Traing start!')
 
-    with open('./results.txt', 'w') as f:
+    time_code = str(datetime.datetime.now())[-3:]
+    with open(f'./results_{time_code}.txt', 'w') as f:
+        f.write('data')
+        f.write('\t')
         f.write('phase')
         f.write('\t')
         f.write('epoch')
@@ -170,9 +194,11 @@ def training(args):
         f.write('acc')
         f.write('\n')
 
-    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
+    for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood', 'train_ood2']:
         best_val_loss = 1e+10
         model = total_model_dict[total_phase]
+        optimizer = optimizer_dict[total_phase]
+        scheduler = scheduler_dict[total_phase]
         
         for epoch in range(start_epoch + 1, args.num_epochs + 1):
             start_time_e = time()
@@ -207,15 +233,15 @@ def training(args):
                             predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
                             loss = F.cross_entropy(predicted, trg_label)
 
-                        scaler.scale(loss).backward()
-                        if args.clip_grad_norm > 0:
-                            scaler.unscale_(optimizer)
-                            clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                        scaler.step(optimizer)
-                        scaler.update()
-                        # loss.backward()
-                        # clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-                        # optimizer.step()
+                        # scaler.scale(loss).backward()
+                        # if args.clip_grad_norm > 0:
+                        #     scaler.unscale_(optimizer)
+                        #     clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+                        # scaler.step(optimizer)
+                        # scaler.update()
+                        loss.backward()
+                        clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+                        optimizer.step()
 
                         if args.scheduler in ['constant', 'warmup']:
                             scheduler.step()
@@ -226,7 +252,7 @@ def training(args):
                         if i == 0 or freq == args.print_freq or i==len(dataloader_dict[loader_phase]):
                             acc = (predicted.max(dim=1)[1] == trg_label.argmax(dim=1)).sum() / len(trg_label)
                             iter_log = "[Epoch:%03d][%03d/%03d] train_loss:%03.2f | train_acc:%03.2f%% | learning_rate:%1.6f | spend_time:%02.2fmin" % \
-                                (epoch, i, len(dataloader_dict['train']), loss, acc*100, optimizer.param_groups[0]['lr'], (time() - start_time_e) / 60)
+                                (epoch, i, len(dataloader_dict[loader_phase]), loss, acc*100, optimizer.param_groups[0]['lr'], (time() - start_time_e) / 60)
                             write_log(logger, iter_log)
                             freq = 0
                         freq += 1
@@ -248,11 +274,11 @@ def training(args):
 
                     val_loss /= len(dataloader_dict[loader_phase])
                     val_acc /= len(dataloader_dict[loader_phase])
-                    write_log(logger, f'Mode: {loader_phase}')
+                    write_log(logger, f'Mode: {total_phase}')
                     write_log(logger, 'Validation Loss: %3.3f' % val_loss)
                     write_log(logger, 'Validation Accuracy: %3.2f%%' % (val_acc * 100))
 
-                    save_file_name = os.path.join(args.model_save_path, args.data_name, loader_phase.split('_')[-1])
+                    save_file_name = os.path.join(args.model_save_path, args.data_name, total_phase.split('_')[-1])
                     save_file_name += 'checkpoint.pth.tar'
                     if val_loss < best_val_loss:
                         write_log(logger, 'Checkpoint saving...')
@@ -269,8 +295,10 @@ def training(args):
                         else_log = f'Still {best_epoch} epoch Loss({round(best_val_loss.item(), 2)}) is better...'
                         write_log(logger, else_log)
 
-                    with open('./results.txt', 'a') as f:
-                        f.write(f'{loader_phase}')
+                    with open(f'./results_{time_code}.txt', 'a') as f:
+                        f.write(f'{args.data_name}')
+                        f.write('\t')
+                        f.write(f'{total_phase}')
                         f.write('\t')
                         f.write(f'{epoch}')
                         f.write('\t')

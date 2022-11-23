@@ -7,21 +7,23 @@ import h5py
 import pickle
 import logging
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from time import time
 # Import PyTorch
 import torch
+import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 from transformers import BertForSequenceClassification
+from torchmetrics.classification import MulticlassCalibrationError
 # Import custom modules
 from dataset import CustomDataset
 from optimizer.utils import shceduler_select, optimizer_select
 from utils import TqdmLoggingHandler, write_log, get_tb_exp_name
-from task.utils import model_save_name
 
 def testing(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -55,7 +57,7 @@ def testing(args):
         test_src_attention_mask = f.get('test_src_attention_mask')[:]
         test_trg_list = f.get('test_label')[:]
 
-    with open(os.path.join(save_path, save_name[:-5] + '_word2id.pkl'), 'rb') as f:
+    with open(os.path.join(save_path, 'processed_word2id.pkl'), 'rb') as f:
         data_ = pickle.load(f)
         src_word2id = data_['src_word2id']
         src_vocab_num = len(src_word2id)
@@ -101,6 +103,12 @@ def testing(args):
 
     ground_truth_list = list()
     predicted_list = list()
+    ece_l1 = 0
+    ece_l2 = 0
+    ece_max = 0
+    metric1 = MulticlassCalibrationError(num_classes=num_labels, n_bins=15, norm='l1')
+    metric2 = MulticlassCalibrationError(num_classes=num_labels, n_bins=15, norm='l2')
+    metric3 = MulticlassCalibrationError(num_classes=num_labels, n_bins=15, norm='max')
 
     for total_phase in ['train_original', 'train_bt', 'train_eda', 'train_ood']:
         model = total_model_dict[total_phase]
@@ -119,23 +127,37 @@ def testing(args):
                     predicted = model(input_ids=src_sequence, attention_mask=src_att)['logits']
 
                 predicted_list.extend(predicted.max(dim=1)[1].cpu().tolist())
+                if i % 300 == 0:
+                    m = nn.Softmax(dim=1)
+                    print(m(predicted)[:16])
                 ground_truth_list.extend(trg_label.cpu().tolist())
+
+                ece_l1 += metric1(predicted.cpu(), trg_label.cpu())
+                ece_l2 += metric2(predicted.cpu(), trg_label.cpu())
+                ece_max += metric3(predicted.cpu(), trg_label.cpu())
                 
         ground_truth_list = [int(x) for x in ground_truth_list]
 
         if args.data_name == 'korean_hate_speech':
 
             hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
-            test_dat = pd.read_csv(os.path.join(hate_data_path, 'test.hate.no_label.csv'))
-            test_dat['label'] = predicted_list
-            test_dat.to_csv(f'./{total_phase}_submission.csv', index=False)
+            # test_dat = pd.read_csv(os.path.join(hate_data_path, 'test.hate.no_label.csv'))
+            # test_dat['label'] = predicted_list
+            # test_dat.to_csv(f'./{total_phase}_submission.csv', index=False)
 
         else:
             test_acc = sum(np.array(ground_truth_list) == np.array(predicted_list)) / len(ground_truth_list)
             with open('./test_results.txt', 'a') as f:
+                f.write(f'{args.data_name}')
+                f.write('\t')
                 f.write(f'{total_phase}')
                 f.write('\t')
                 f.write(f'{test_acc}')
                 f.write('\n')
             write_log(logger, f'Mode: {total_phase}')
             write_log(logger, f'Test Accuracy: {test_acc}')
+
+        write_log(logger, f'Mode: {total_phase}')
+        write_log(logger, f'ECE_L1: {ece_l1 / len(test_dataloader)}')
+        write_log(logger, f'ECE_L2: {ece_l2 / len(test_dataloader)}')
+        write_log(logger, f'ECE_MAX: {ece_max / len(test_dataloader)}')

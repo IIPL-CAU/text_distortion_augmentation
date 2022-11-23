@@ -7,6 +7,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from koaeda import AEDA
 from transformers import AutoTokenizer
 # Import custom modules
 from task.utils import total_data_load
@@ -78,13 +79,30 @@ def preprocessing(args):
     processed_sequences['bt']['label'] = list()
     processed_sequences['eda'] = dict()
     processed_sequences['ood'] = dict()
+    processed_sequences['ood2'] = dict()
 
     # Back-translation
     write_log(logger, 'Back-translation...')
 
-    bt_src, bt_trg = multi_bt(src_list['train'], trg_list['train'])
+    # bt_src, bt_trg = multi_bt(src_list['train'], trg_list['train'])
 
-    bt_src = list(bt_src)
+    # bt_src = list(bt_src)
+    # encoded_dict = \
+    # tokenizer(
+    #     bt_src,
+    #     max_length=args.src_max_len,
+    #     padding='max_length',
+    #     truncation=True
+    # )
+    # processed_sequences['bt']['input_ids'] = encoded_dict['input_ids']
+    # processed_sequences['bt']['attention_mask'] = encoded_dict['attention_mask']
+    # processed_sequences['bt']['token_type_ids'] = encoded_dict['token_type_ids']
+
+    ko_aeda = AEDA()
+    bt_src = list()
+    for text in tqdm(src_list['train'], bar_format='{l_bar}{bar:30}{r_bar}{bar:-2b}'):
+        bt_src.append(ko_aeda(text))
+
     encoded_dict = \
     tokenizer(
         bt_src,
@@ -95,6 +113,8 @@ def preprocessing(args):
     processed_sequences['bt']['input_ids'] = encoded_dict['input_ids']
     processed_sequences['bt']['attention_mask'] = encoded_dict['attention_mask']
     processed_sequences['bt']['token_type_ids'] = encoded_dict['token_type_ids']
+
+    bt_trg = trg_list['train']
 
     write_log(logger, 'Back-translation Tokenizing Done')
 
@@ -123,10 +143,14 @@ def preprocessing(args):
     korpora_data_path = os.path.join(args.data_path, 'korpora')
     dat = pd.read_csv(os.path.join(korpora_data_path, 'pair_kor.csv'), names=['kr']).dropna()
     ood_src = dat['kr'].tolist()
+    if args.data_name == 'klue_tc':
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+        dat = pd.read_csv(os.path.join(hate_data_path, 'train.hate.csv'))
+        ood_src = dat['comments'].tolist()
 
-    aihub_data_path = os.path.join(args.data_path,'AI_Hub_KR_EN')
-    dat = pd.read_csv(os.path.join(aihub_data_path, '1_구어체(1).csv')).dropna()
-    ood_src += dat['KR'].tolist()
+    # aihub_data_path = os.path.join(args.data_path,'AI_Hub_KR_EN')
+    # dat = pd.read_csv(os.path.join(aihub_data_path, '1_구어체(1).csv')).dropna()
+    # ood_src += dat['KR'].tolist()
 
     encoded_dict = \
     tokenizer(
@@ -138,6 +162,48 @@ def preprocessing(args):
     processed_sequences['ood']['input_ids'] = encoded_dict['input_ids']
     processed_sequences['ood']['attention_mask'] = encoded_dict['attention_mask']
     processed_sequences['ood']['token_type_ids'] = encoded_dict['token_type_ids']
+
+    # Out-of-Domain2
+    write_log(logger, 'OoD2...')
+    if args.data_name == 'korean_hate_speech':
+        nsmc_data_path = os.path.join(args.data_path,'nsmc')
+        train_dat = pd.read_csv(os.path.join(nsmc_data_path, 'ratings_train.txt'), 
+                                sep='\t', names=['id', 'description', 'label'], header=0).dropna()
+        ood2_src = train_dat['description'].tolist()
+
+        encoded_dict = \
+        tokenizer(
+            ood2_src,
+            max_length=args.src_max_len,
+            padding='max_length',
+            truncation=True
+        )
+        processed_sequences['ood2']['input_ids'] = encoded_dict['input_ids']
+        processed_sequences['ood2']['attention_mask'] = encoded_dict['attention_mask']
+        processed_sequences['ood2']['token_type_ids'] = encoded_dict['token_type_ids']
+
+    if args.data_name == 'nsmc':
+        hate_data_path = os.path.join(args.data_path,'korean-hate-speech-detection')
+
+        train_dat = pd.read_csv(os.path.join(hate_data_path, 'train.hate.csv'))
+        ood2_src = train_dat['comments'].tolist()
+
+        encoded_dict = \
+        tokenizer(
+            ood2_src,
+            max_length=args.src_max_len,
+            padding='max_length',
+            truncation=True
+        )
+        processed_sequences['ood2']['input_ids'] = encoded_dict['input_ids']
+        processed_sequences['ood2']['attention_mask'] = encoded_dict['attention_mask']
+        processed_sequences['ood2']['token_type_ids'] = encoded_dict['token_type_ids']
+
+    else:
+
+        processed_sequences['ood2']['input_ids'] = processed_sequences['train']['input_ids']
+        processed_sequences['ood2']['attention_mask'] = processed_sequences['train']['attention_mask']
+        processed_sequences['ood2']['token_type_ids'] = processed_sequences['train']['token_type_ids']
 
     # write_log(logger, 'C-BERT...')
 
@@ -172,6 +238,9 @@ def preprocessing(args):
         f.create_dataset('train_ood_src_input_ids', data=processed_sequences['ood']['input_ids'])
         f.create_dataset('train_ood_src_attention_mask', data=processed_sequences['ood']['attention_mask'])
         f.create_dataset('train_ood_label', data=np.array(trg_list['train']).astype(int))
+        f.create_dataset('train_ood2_src_input_ids', data=processed_sequences['ood2']['input_ids'])
+        f.create_dataset('train_ood2_src_attention_mask', data=processed_sequences['ood2']['attention_mask'])
+        f.create_dataset('train_ood2_label', data=np.array(trg_list['train']).astype(int))
 
     with h5py.File(os.path.join(save_path, 'test_' + save_name), 'w') as f:
         f.create_dataset('test_src_input_ids', data=processed_sequences['test']['input_ids'])

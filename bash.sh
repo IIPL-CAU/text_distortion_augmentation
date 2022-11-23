@@ -1,0 +1,11 @@
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=korean_hate_speech --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=nsmc --lr=1e-4 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=klue_tc --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=korean_hate_speech --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=nsmc --lr=1e-4 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=klue_tc --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=korean_hate_speech --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=nsmc --lr=1e-4 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=klue_tc --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=nsmc --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
+CUDA_VISIBLE_DEVICES=2 python main.py --preprocessing --training --src_max_len=150 --data_name=klue_tc --lr=1e-5 --scheduler=reduce_valid --batch_size=240 --print_freq=150 --num_epochs=10 --optimizer=AdamW
