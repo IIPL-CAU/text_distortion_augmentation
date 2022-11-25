@@ -80,13 +80,14 @@ def training(args):
         train_eda_trg_list = F.one_hot(torch.tensor(train_eda_trg_list, dtype=torch.long)).numpy()
         train_ood_src_input_ids = f.get('train_ood_src_input_ids')[:]
         train_ood_src_attention_mask = f.get('train_ood_src_attention_mask')[:]
-        if args.data_name == 'nsmc':
-            train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
-        else:
-            random_ix_list = [random.sample(range(num_labels), 2) for x in range(len(train_ood_src_input_ids))]
-            train_ood_trg_list = torch.zeros(len(train_ood_src_input_ids), num_labels)
-            for i in range(len(train_ood_trg_list)):
-                train_ood_trg_list[i][random_ix_list[i]] = torch.tensor([0.5, 0.5])
+        train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
+        # if args.data_name == 'nsmc':
+        #     train_ood_trg_list = torch.full((len(train_trg_list), num_labels), 1 / num_labels).numpy()
+        # else:
+        #     random_ix_list = [random.sample(range(num_labels), 2) for x in range(len(train_ood_src_input_ids))]
+        #     train_ood_trg_list = torch.zeros(len(train_ood_src_input_ids), num_labels)
+        #     for i in range(len(train_ood_trg_list)):
+        #         train_ood_trg_list[i][random_ix_list[i]] = torch.tensor([0.5, 0.5])
 
         train_ood2_src_input_ids = f.get('train_ood2_src_input_ids')[:]
         train_ood2_src_attention_mask = f.get('train_ood2_src_attention_mask')[:]
